@@ -1,20 +1,15 @@
-// handTracking.js
+// hand.js
 // 负责：摄像头开启、MediaPipe 手部识别、手势判定，输出「张开手掌」边沿事件。
-// 关键：不静态 import CDN，改用运行时动态 import，避免 CDN 挂掉导致整个页面崩溃。
 
 let HandLandmarker = null;
 let FilesetResolver = null;
-// ...
-const WASM_PATH =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
-const MODEL_PATH =
-  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+
+const WASM_PATH = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+const MODEL_PATH = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
 
 async function loadMediaPipeOnce() {
   if (HandLandmarker) return;
-  const vision = await import(
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs"
-  );
+  const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs");
   HandLandmarker = vision.HandLandmarker;
   FilesetResolver = vision.FilesetResolver;
 }
@@ -43,15 +38,11 @@ export class HandTracker {
   async init() {
     if (this.landmarker) return;
     this.onStatus?.("正在加载手部识别模型…");
-
-    await loadMediaPipeOnce(); // ← 动态加载
+    await loadMediaPipeOnce(); 
 
     const fileset = await FilesetResolver.forVisionTasks(WASM_PATH);
     this.landmarker = await HandLandmarker.createFromOptions(fileset, {
-      baseOptions: {
-        modelAssetPath: MODEL_PATH,
-        delegate: "CPU",
-      },
+      baseOptions: { modelAssetPath: MODEL_PATH, delegate: "GPU" },
       runningMode: "VIDEO",
       numHands: 1,
     });
@@ -136,15 +127,10 @@ export class HandTracker {
     for (let i = 0; i < 5; i++) {
       const tip = lm[FINGER_TIPS[i]];
       const pip = lm[FINGER_PIPS[i]];
-
       if (i === 0) {
-        if (this._dist(tip, pinkyMcp) > this._dist(pip, pinkyMcp) * 1.05) {
-          extended++;
-        }
+        if (this._dist(tip, pinkyMcp) > this._dist(pip, pinkyMcp) * 1.05) extended++;
       } else {
-        if (this._dist(tip, wrist) > this._dist(pip, wrist) * 1.05) {
-          extended++;
-        }
+        if (this._dist(tip, wrist) > this._dist(pip, wrist) * 1.05) extended++;
       }
     }
     return extended >= 4;
