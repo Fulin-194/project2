@@ -2,24 +2,23 @@
 // 负责：画布初始化、浮世绘背景绘制、主循环、UI 事件与降级交互。
 
 import { WaveField } from "./wave.js";
-import { HandTracker } from "./handTracking.js";
+import { HandTracker } from "./hand.js"; 
 
 const canvas = document.getElementById("stage");
 const ctx = canvas.getContext("2d");
 const statusEl = document.getElementById("status");
 const startBtn = document.getElementById("startBtn");
 
+// 颜色配置：调整为《凯风快晴》的色调
 const COLORS = {
-  skyTop: "#e8eef4",
-  skyBottom: "#f4efe4",
-  seaDeep: "#122a4a",
-  seaMid: "#1b3b6f",
-  seaLight: "#2a5b8f",
-  waveLine: "#4a86b8",
-  foam: "#f4efe4",
-  outline: "#2b2118",
-  fuji: "#1b3b6f",
-  fujiSnow: "#f4efe4",
+  skyTop: "#a3c4dc",
+  skyBottom: "#c4d8e6",
+  seaDeep: "#1d3b5b",
+  seaMid: "#4a7a9b",
+  seaLight: "#7a9fb8",
+  fujiBody: "#f4f1e8",
+  fujiShadow: "#1d3b5b",
+  forest: "#1a1a1a"
 };
 
 let W = 0;
@@ -47,50 +46,119 @@ window.addEventListener("resize", resize);
 
 // ---------- 背景：天空 / 富士山 / 海面 ----------
 function drawSky() {
-  const g = ctx.createLinearGradient(0, 0, 0, H * 0.62);
+  const g = ctx.createLinearGradient(0, 0, 0, H * 0.7);
   g.addColorStop(0, COLORS.skyTop);
   g.addColorStop(1, COLORS.skyBottom);
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H * 0.62);
+  ctx.fillRect(0, 0, W, H * 0.7);
 }
 
 function drawFuji() {
-  const baseY = H * 0.62;
-  const cx = W * 0.78;
-  const peakY = H * 0.18;
-  const halfW = W * 0.2;
+  const baseY = H * 0.72;      // 山脚没入海平线
+  const cx = W * 0.68;         // 山体中心偏右
+  const peakY = H * 0.15;      // 山顶高度
+  const halfW = W * 0.45;      // 山体非常宽广
 
+  // 1. 绘制山体底色
   ctx.beginPath();
   ctx.moveTo(cx - halfW, baseY);
-  ctx.quadraticCurveTo(cx - halfW * 0.5, peakY + 30, cx - halfW * 0.12, peakY);
-  ctx.lineTo(cx + halfW * 0.12, peakY);
-  ctx.quadraticCurveTo(cx + halfW * 0.5, peakY + 30, cx + halfW, baseY);
-  ctx.closePath();
-  ctx.fillStyle = COLORS.fuji;
-  ctx.fill();
-
-  // 雪顶
-  ctx.beginPath();
-  ctx.moveTo(cx - halfW * 0.26, peakY + (baseY - peakY) * 0.22);
-  ctx.lineTo(cx - halfW * 0.12, peakY);
-  ctx.lineTo(cx + halfW * 0.12, peakY);
-  ctx.lineTo(cx + halfW * 0.26, peakY + (baseY - peakY) * 0.22);
-  ctx.quadraticCurveTo(
-    cx,
-    peakY + (baseY - peakY) * 0.3,
-    cx - halfW * 0.26,
-    peakY + (baseY - peakY) * 0.22
+  ctx.bezierCurveTo(
+    cx - halfW * 0.6, baseY - (baseY - peakY) * 0.4,
+    cx - halfW * 0.25, peakY + 20,
+    cx - halfW * 0.1, peakY
+  );
+  ctx.lineTo(cx + halfW * 0.08, peakY);
+  ctx.bezierCurveTo(
+    cx + halfW * 0.2, peakY + 30,
+    cx + halfW * 0.5, baseY - (baseY - peakY) * 0.2,
+    cx + halfW, baseY + 20
   );
   ctx.closePath();
-  ctx.fillStyle = COLORS.fujiSnow;
+  
+  const bodyGrad = ctx.createLinearGradient(cx, peakY, cx, baseY);
+  bodyGrad.addColorStop(0, COLORS.fujiBody);
+  bodyGrad.addColorStop(0.7, "#e2e2d8");
+  bodyGrad.addColorStop(1, "#b0c4d4"); 
+  ctx.fillStyle = bodyGrad;
   ctx.fill();
+
+  // 2. 绘制右侧深蓝色山脊阴影
+  ctx.beginPath();
+  ctx.moveTo(cx + halfW * 0.08, peakY);
+  ctx.bezierCurveTo(
+    cx + halfW * 0.2, peakY + 30,
+    cx + halfW * 0.5, baseY - (baseY - peakY) * 0.2,
+    cx + halfW, baseY + 20
+  );
+  ctx.lineTo(cx + halfW * 0.6, baseY + 10); 
+  ctx.bezierCurveTo(
+    cx + halfW * 0.3, baseY - (baseY - peakY) * 0.3,
+    cx + halfW * 0.15, peakY + 40,
+    cx + halfW * 0.08, peakY
+  );
+  ctx.closePath();
+  ctx.fillStyle = COLORS.fujiShadow;
+  ctx.fill();
+
+  // 3. 绘制山顶积雪与放射状沟壑
+  ctx.beginPath();
+  ctx.moveTo(cx - halfW * 0.3, peakY + (baseY - peakY) * 0.35);
+  ctx.lineTo(cx - halfW * 0.1, peakY);
+  ctx.lineTo(cx + halfW * 0.08, peakY);
+  ctx.lineTo(cx + halfW * 0.25, peakY + (baseY - peakY) * 0.3);
+  for (let i = 0; i < 10; i++) {
+    const t = i / 9;
+    const px = cx + halfW * (0.25 - t * 0.55);
+    const py = peakY + (baseY - peakY) * (0.25 + Math.random() * 0.15);
+    ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  // 积雪沟壑
+  ctx.strokeStyle = COLORS.fujiShadow;
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  for (let i = 0; i < 15; i++) {
+    const startX = cx - halfW * 0.1 + Math.random() * halfW * 0.18;
+    const startY = peakY + Math.random() * 20;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.bezierCurveTo(
+      startX + (Math.random() - 0.5) * 30, startY + (baseY - peakY) * 0.1,
+      startX + (Math.random() - 0.5) * 50, startY + (baseY - peakY) * 0.2,
+      startX + (Math.random() - 0.5) * 60, startY + (baseY - peakY) * (0.25 + Math.random() * 0.1)
+    );
+    ctx.stroke();
+  }
+
+  // 4. 左下角的山麓森林（密集小点）
+  ctx.fillStyle = COLORS.forest;
+  const forestW = halfW * 0.8;
+  const forestH = (baseY - peakY) * 0.4;
+  const startX = cx - halfW;
+  
+  for (let i = 0; i < 1200; i++) {
+    const rx = Math.random();
+    const ry = Math.random();
+    if (ry > rx * 1.2) {
+      const px = startX + rx * forestW;
+      const py = baseY - forestH + ry * forestH;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + 2, py - 4);
+      ctx.lineTo(px + 4, py);
+      ctx.fill();
+    }
+  }
 }
 
 function drawSeaBase() {
-  const topY = H * 0.62;
+  const topY = H * 0.62; // 海平线
   const g = ctx.createLinearGradient(0, topY, 0, H);
-  g.addColorStop(0, COLORS.seaLight);
-  g.addColorStop(0.5, COLORS.seaMid);
+  g.addColorStop(0, COLORS.seaLight); 
+  g.addColorStop(0.4, COLORS.seaMid);
   g.addColorStop(1, COLORS.seaDeep);
   ctx.fillStyle = g;
   ctx.fillRect(0, topY, W, H - topY);

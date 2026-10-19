@@ -4,7 +4,7 @@
 
 let HandLandmarker = null;
 let FilesetResolver = null;
-
+// ...
 const WASM_PATH =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
 const MODEL_PATH =
@@ -50,7 +50,7 @@ export class HandTracker {
     this.landmarker = await HandLandmarker.createFromOptions(fileset, {
       baseOptions: {
         modelAssetPath: MODEL_PATH,
-        delegate: "GPU",
+        delegate: "CPU",
       },
       runningMode: "VIDEO",
       numHands: 1,
